@@ -1,0 +1,83 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.2
+  creationTimestamp: null
+  name: casdoors.operator.casdoor.org
+spec:
+  group: operator.casdoor.org
+  names:
+    kind: Casdoor
+    listKind: CasdoorList
+    plural: casdoors
+    singular: casdoor
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: Casdoor is the Schema for the casdoors API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: CasdoorSpec defines the desired state of Casdoor
+            properties:
+              appConf:
+                additionalProperties:
+                  type: string
+                description: items for `app.conf`
+                type: object
+              image:
+                default: casbin/casdoor-all-in-one:latest
+                type: string
+              imagePullPolicy:
+                default: IfNotPresent
+                type: string
+              inClusterCDN:
+                description: in-cluster static file server
+                type: boolean
+              initData:
+                additionalProperties:
+                  type: string
+                description: items for `init_data.json` key is jsonpath of the item
+                  like `organization[0].name`
+                type: object
+              replica:
+                default: 1
+                description: items for deploy rules
+                format: int32
+                type: integer
+            type: object
+          status:
+            description: CasdoorStatus defines the observed state of Casdoor
+            properties:
+              reason:
+                description: reason if pending or failed
+                type: string
+              status:
+                default: Pending
+                description: Casdoor status
+                type: string
+            required:
+            - status
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
