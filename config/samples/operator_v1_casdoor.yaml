@@ -1,0 +1,6 @@
+apiVersion: operator.casdoor.org/v1
+kind: Casdoor
+metadata:
+  name: casdoor-sample
+spec:
+  # TODO(user): Add fields here

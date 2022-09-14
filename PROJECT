@@ -1,0 +1,16 @@
+domain: casdoor.org
+layout:
+- go.kubebuilder.io/v3
+projectName: casdoor-operator
+repo: casdoor-operator
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: casdoor.org
+  group: operator
+  kind: Casdoor
+  path: casdoor-operator/api/v1
+  version: v1
+version: "3"

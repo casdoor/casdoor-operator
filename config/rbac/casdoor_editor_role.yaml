@@ -1,0 +1,24 @@
+# permissions for end users to edit casdoors.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: casdoor-editor-role
+rules:
+- apiGroups:
+  - operator.casdoor.org
+  resources:
+  - casdoors
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - operator.casdoor.org
+  resources:
+  - casdoors/status
+  verbs:
+  - get
