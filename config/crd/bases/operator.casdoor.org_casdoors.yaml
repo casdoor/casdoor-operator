@@ -50,11 +50,8 @@ spec:
                 description: in-cluster static file server
                 type: boolean
               initData:
-                additionalProperties:
-                  type: string
-                description: items for `init_data.json` key is jsonpath of the item
-                  like `organization[0].name`
-                type: object
+                description: items for `init_data.json`
+                type: string
               replica:
                 default: 1
                 description: items for deploy rules

@@ -43,8 +43,7 @@ type CasdoorSpec struct {
 	AppConf map[string]string `json:"appConf,omitempty"`
 
 	// items for `init_data.json`
-	// key is jsonpath of the item like `organization[0].name`
-	InitData map[string]string `json:"initData,omitempty"`
+	InitData string `json:"initData,omitempty"`
 
 	// in-cluster static file server
 	InClusterCDN bool `json:"inClusterCDN,omitempty"`
