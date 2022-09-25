@@ -17,6 +17,7 @@ limitations under the License.
 package controllers
 
 import (
+	"casdoor-operator/controllers/utils"
 	"context"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -29,7 +30,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+	"strconv"
 	"strings"
+	"time"
 
 	operatorv1 "casdoor-operator/api/v1"
 )
@@ -91,10 +94,41 @@ func (r *CasdoorReconciler) apply(ctx context.Context, casdoor *operatorv1.Casdo
 		}
 	}
 
+	if err := r.applyConfigMap(ctx, casdoor); err != nil {
+		return err
+	}
 	if err := r.applyService(ctx, casdoor); err != nil {
 		return err
 	}
 	if err := r.applyDeployment(ctx, casdoor); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *CasdoorReconciler) applyConfigMap(ctx context.Context, casdoor *operatorv1.Casdoor) error {
+	objectMeta := metav1.ObjectMeta{
+		Name:      casdoor.Name,
+		Namespace: casdoor.Namespace,
+	}
+	appConf := utils.MergeAppConf(casdoor.Spec.AppConf)
+	expectConfigMap := &corev1.ConfigMap{
+		ObjectMeta: objectMeta,
+		Data: map[string]string{
+			"app.conf":       appConf,
+			"init_data.json": casdoor.Spec.InitData,
+		},
+	}
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: objectMeta,
+	}
+	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, configMap, func() error {
+		configMap.Data = expectConfigMap.Data
+		if err := controllerutil.SetControllerReference(casdoor, configMap, r.Scheme); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
 		return err
 	}
 	return nil
@@ -108,6 +142,8 @@ func (r *CasdoorReconciler) applyDeployment(ctx context.Context, casdoor *operat
 	// Different image need different commands and args
 	var commands, args []string
 	if !strings.Contains(casdoor.Spec.Image, "all-in-one") {
+		logger := log.FromContext(ctx)
+		logger.Info("Casdoor image is not all-in-one, will use default commands and args")
 		commands = append(commands, "/bin/sh")
 		args = append(args, "-c", "./server --createDatabase=true")
 	}
@@ -117,7 +153,12 @@ func (r *CasdoorReconciler) applyDeployment(ctx context.Context, casdoor *operat
 	}
 
 	expectDeployment := &appsv1.Deployment{
-		ObjectMeta: objectMeta,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      casdoor.Name,
+			Namespace: casdoor.Namespace,
+			// Restart Pod
+			Labels: map[string]string{"updateTimestamp": strconv.FormatInt(time.Now().Unix(), 10)},
+		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: casdoor.Spec.Replicas,
 			Selector: &metav1.LabelSelector{
@@ -147,6 +188,30 @@ func (r *CasdoorReconciler) applyDeployment(ctx context.Context, casdoor *operat
 							Env: []corev1.EnvVar{
 								{Name: "RUN_IN_DOCKER", Value: "true"},
 							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      casdoor.Name,
+									MountPath: "/init_data.json",
+									SubPath:   "init_data.json",
+								},
+								{
+									Name:      casdoor.Name,
+									MountPath: "/conf/app.conf",
+									SubPath:   "app.conf",
+								},
+							},
+						},
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: casdoor.Name,
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
+										Name: casdoor.Name,
+									},
+								},
+							},
 						},
 					},
 				},
@@ -165,6 +230,7 @@ func (r *CasdoorReconciler) applyDeployment(ctx context.Context, casdoor *operat
 		}
 		deployment.Spec.Replicas = expectDeployment.Spec.Replicas
 		deployment.Spec.Template.ObjectMeta = expectDeployment.Spec.Template.ObjectMeta
+		deployment.Spec.Template.Spec.Volumes = expectDeployment.Spec.Template.Spec.Volumes
 
 		// not override existed auto-generated items
 		if len(deployment.Spec.Template.Spec.Containers) == 0 {
