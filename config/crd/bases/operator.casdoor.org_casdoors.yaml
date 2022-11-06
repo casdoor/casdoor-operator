@@ -51,7 +51,294 @@ spec:
                 type: boolean
               initData:
                 description: items for `init_data.json`
-                type: string
+                properties:
+                  applications:
+                    items:
+                      properties:
+                        cert:
+                          type: string
+                        clientId:
+                          type: string
+                        clientSecret:
+                          type: string
+                        displayName:
+                          type: string
+                        enablePassword:
+                          type: boolean
+                        enableSignUp:
+                          type: boolean
+                        expireInHours:
+                          type: integer
+                        homepageUrl:
+                          type: string
+                        logo:
+                          type: string
+                        name:
+                          type: string
+                        organization:
+                          type: string
+                        owner:
+                          type: string
+                        providers:
+                          items:
+                            properties:
+                              alertType:
+                                type: string
+                              canSignIn:
+                                type: boolean
+                              canSignUp:
+                                type: boolean
+                              canUnlink:
+                                type: boolean
+                              name:
+                                type: string
+                              prompted:
+                                type: boolean
+                            required:
+                            - name
+                            type: object
+                          type: array
+                        redirectUris:
+                          items:
+                            type: string
+                          type: array
+                        signupItems:
+                          items:
+                            properties:
+                              name:
+                                type: string
+                              prompted:
+                                type: boolean
+                              required:
+                                type: boolean
+                              rule:
+                                type: string
+                              visible:
+                                type: boolean
+                            required:
+                            - name
+                            - prompted
+                            - required
+                            - rule
+                            - visible
+                            type: object
+                          type: array
+                      required:
+                      - name
+                      type: object
+                    type: array
+                  certs:
+                    items:
+                      properties:
+                        bitSize:
+                          type: integer
+                        certificate:
+                          type: string
+                        cryptoAlgorithm:
+                          type: string
+                        displayName:
+                          type: string
+                        expireInYears:
+                          type: integer
+                        name:
+                          type: string
+                        owner:
+                          type: string
+                        privateKey:
+                          type: string
+                        scope:
+                          type: string
+                        type:
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
+                  ldaps:
+                    items:
+                      properties:
+                        admin:
+                          type: string
+                        autoSync:
+                          type: integer
+                        baseDn:
+                          type: string
+                        createdTime:
+                          type: string
+                        host:
+                          type: string
+                        id:
+                          type: string
+                        lastSync:
+                          type: string
+                        owner:
+                          type: string
+                        passwd:
+                          type: string
+                        port:
+                          type: integer
+                        serverName:
+                          type: string
+                      required:
+                      - admin
+                      - autoSync
+                      - baseDn
+                      - createdTime
+                      - host
+                      - id
+                      - lastSync
+                      - owner
+                      - passwd
+                      - port
+                      - serverName
+                      type: object
+                    type: array
+                  organizations:
+                    items:
+                      properties:
+                        createdTime:
+                          type: string
+                        defaultAvatar:
+                          type: string
+                        displayName:
+                          type: string
+                        enableSoftDeletion:
+                          type: boolean
+                        favicon:
+                          type: string
+                        masterPassword:
+                          type: string
+                        name:
+                          type: string
+                        owner:
+                          type: string
+                        passwordSalt:
+                          type: string
+                        passwordType:
+                          type: string
+                        phonePrefix:
+                          type: string
+                        websiteUrl:
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
+                  providers:
+                    items:
+                      properties:
+                        category:
+                          type: string
+                        clientId:
+                          type: string
+                        clientSecret:
+                          type: string
+                        displayName:
+                          type: string
+                        name:
+                          type: string
+                        owner:
+                          type: string
+                        type:
+                          type: string
+                      required:
+                      - category
+                      - clientId
+                      - clientSecret
+                      - name
+                      - type
+                      type: object
+                    type: array
+                  users:
+                    items:
+                      properties:
+                        address:
+                          items:
+                            type: string
+                          type: array
+                        affiliation:
+                          type: string
+                        avatar:
+                          type: string
+                        bio:
+                          type: string
+                        birthday:
+                          type: string
+                        createdTime:
+                          type: string
+                        displayName:
+                          type: string
+                        education:
+                          type: string
+                        email:
+                          type: string
+                        gender:
+                          type: string
+                        hash:
+                          type: string
+                        homepage:
+                          type: string
+                        idCard:
+                          type: string
+                        idCardType:
+                          type: string
+                        isAdmin:
+                          type: boolean
+                        isDefaultAvatar:
+                          type: boolean
+                        isDeleted:
+                          type: boolean
+                        isForbidden:
+                          type: boolean
+                        isGlobalAdmin:
+                          type: boolean
+                        isOnline:
+                          type: boolean
+                        karma:
+                          type: integer
+                        language:
+                          type: string
+                        ldap:
+                          type: string
+                        location:
+                          type: string
+                        name:
+                          type: string
+                        owner:
+                          type: string
+                        password:
+                          type: string
+                        passwordSalt:
+                          type: string
+                        permanentAvatar:
+                          type: string
+                        phone:
+                          type: string
+                        preHash:
+                          type: string
+                        properties:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        ranking:
+                          type: integer
+                        region:
+                          type: string
+                        score:
+                          type: integer
+                        signupApplication:
+                          type: string
+                        tag:
+                          type: string
+                        title:
+                          type: string
+                        type:
+                          type: string
+                        updatedTime:
+                          type: string
+                      type: object
+                    type: array
+                type: object
               replica:
                 default: 1
                 description: items for deploy rules
