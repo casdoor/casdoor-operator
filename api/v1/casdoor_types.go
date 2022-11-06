@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	"casdoor-operator/controllers/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strconv"
 )
@@ -43,9 +44,10 @@ type CasdoorSpec struct {
 	AppConf map[string]string `json:"appConf,omitempty"`
 
 	// items for `init_data.json`
-	InitData string `json:"initData,omitempty"`
+	InitData utils.CasdoorInitData `json:"initData,omitempty"`
 
 	// in-cluster static file server
+	// +kubebuilder:validation:Optional
 	InClusterCDN bool `json:"inClusterCDN,omitempty"`
 }
 

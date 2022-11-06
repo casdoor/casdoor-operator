@@ -111,12 +111,19 @@ func (r *CasdoorReconciler) applyConfigMap(ctx context.Context, casdoor *operato
 		Name:      casdoor.Name,
 		Namespace: casdoor.Namespace,
 	}
-	appConf := utils.MergeAppConf(casdoor.Spec.AppConf)
+	appConf, err := utils.MergeAppConf(casdoor.Spec.AppConf)
+	if err != nil {
+		return err
+	}
+	initData, err := utils.MergeInitData(casdoor.Spec.InitData)
+	if err != nil {
+		return err
+	}
 	expectConfigMap := &corev1.ConfigMap{
 		ObjectMeta: objectMeta,
 		Data: map[string]string{
 			"app.conf":       appConf,
-			"init_data.json": casdoor.Spec.InitData,
+			"init_data.json": initData,
 		},
 	}
 	configMap := &corev1.ConfigMap{
