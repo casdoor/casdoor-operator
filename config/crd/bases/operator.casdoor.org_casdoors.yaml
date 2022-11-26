@@ -348,6 +348,10 @@ spec:
           status:
             description: CasdoorStatus defines the observed state of Casdoor
             properties:
+              connectionConfig:
+                description: 'ConnectionConfig  secret name of Casdoor SDK configuration
+                  to connect TODO: multiple applications'
+                type: string
               reason:
                 description: reason if pending or failed
                 type: string

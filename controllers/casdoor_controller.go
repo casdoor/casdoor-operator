@@ -19,6 +19,7 @@ package controllers
 import (
 	"casdoor-operator/controllers/utils"
 	"context"
+	"encoding/json"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -115,7 +116,11 @@ func (r *CasdoorReconciler) applyConfigMap(ctx context.Context, casdoor *operato
 	if err != nil {
 		return err
 	}
-	initData, err := utils.MergeInitData(casdoor.Spec.InitData)
+	initData, err := utils.MergeInitData(&casdoor.Spec.InitData)
+	if err != nil {
+		return err
+	}
+	initDataStr, err := json.Marshal(initData)
 	if err != nil {
 		return err
 	}
@@ -123,7 +128,7 @@ func (r *CasdoorReconciler) applyConfigMap(ctx context.Context, casdoor *operato
 		ObjectMeta: objectMeta,
 		Data: map[string]string{
 			"app.conf":       appConf,
-			"init_data.json": initData,
+			"init_data.json": string(initDataStr),
 		},
 	}
 	configMap := &corev1.ConfigMap{
@@ -138,6 +143,31 @@ func (r *CasdoorReconciler) applyConfigMap(ctx context.Context, casdoor *operato
 	}); err != nil {
 		return err
 	}
+
+	// Create configuration for SDK connection
+	expectSecret := &corev1.Secret{
+		ObjectMeta: objectMeta,
+		Data: map[string][]byte{
+			"clientID":       []byte(initData.Applications[0].ClientID),
+			"clientSecret":   []byte(initData.Applications[0].ClientSecret),
+			"JwtCertificate": []byte(initData.Certs[0].Certificate),
+			"Organization":   []byte(initData.Organizations[0].Name),
+			"Application":    []byte(initData.Applications[0].Name),
+		},
+	}
+	secret := &corev1.Secret{
+		ObjectMeta: objectMeta,
+	}
+	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, secret, func() error {
+		secret.Data = expectSecret.Data
+		if err := controllerutil.SetControllerReference(casdoor, secret, r.Scheme); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	casdoor.Status.ConnectionConfig = secret.Name
 	return nil
 }
 
