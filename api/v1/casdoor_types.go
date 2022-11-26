@@ -59,6 +59,10 @@ type CasdoorStatus struct {
 
 	// reason if pending or failed
 	Reason string `json:"reason,omitempty"`
+
+	// ConnectionConfig  secret name of Casdoor SDK configuration to connect
+	// TODO: multiple applications
+	ConnectionConfig string `json:"connectionConfig,omitempty"`
 }
 
 //+kubebuilder:object:root=true

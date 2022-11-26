@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/hex"
-	"encoding/json"
 	"encoding/pem"
 	"github.com/imdario/mergo"
 	"math/big"
@@ -50,7 +49,7 @@ func MergeAppConf(newConf map[string]string) (string, error) {
 	return builder.String(), nil
 }
 
-func MergeInitData(newInitData CasdoorInitData) (string, error) {
+func MergeInitData(newInitData *CasdoorInitData) (*CasdoorInitData, error) {
 	if newInitData.Organizations == nil || len(newInitData.Organizations) == 0 {
 		newInitData.Organizations = []Organization{
 			{
@@ -67,14 +66,14 @@ func MergeInitData(newInitData CasdoorInitData) (string, error) {
 				PasswordType: "plain",
 			}
 			if err := mergo.Merge(&newInitData.Organizations[i], defaultOrg); err != nil {
-				return "", err
+				return nil, err
 			}
 		}
 	}
 	if newInitData.Certs == nil || len(newInitData.Certs) == 0 {
 		certificate, privateKey, err := CreateJWTCertificateAndPrivateKey(newInitData.Organizations[0].Name)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		newInitData.Certs = []Cert{
 			{
@@ -93,7 +92,7 @@ func MergeInitData(newInitData CasdoorInitData) (string, error) {
 		for i := 0; i < len(newInitData.Certs); i++ {
 			certificate, privateKey, err := CreateJWTCertificateAndPrivateKey(newInitData.Organizations[0].Name)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			defaultCert := Cert{
 				Owner:           "admin",
@@ -107,7 +106,7 @@ func MergeInitData(newInitData CasdoorInitData) (string, error) {
 				PrivateKey:      privateKey,
 			}
 			if err := mergo.Merge(&newInitData.Certs[i], defaultCert); err != nil {
-				return "", err
+				return nil, err
 			}
 		}
 	}
@@ -120,7 +119,7 @@ func MergeInitData(newInitData CasdoorInitData) (string, error) {
 				Name:  "operator_default_provider_" + strconv.Itoa(i),
 			}
 			if err := mergo.Merge(&newInitData.Providers[i], defaultProvider); err != nil {
-				return "", err
+				return nil, err
 			}
 			providerItems = append(providerItems, ProviderItem{
 				Name:      newInitData.Providers[i].Name,
@@ -136,11 +135,11 @@ func MergeInitData(newInitData CasdoorInitData) (string, error) {
 	if newInitData.Applications == nil || len(newInitData.Applications) == 0 {
 		clientID, err := RandomHexStr(10)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		clientSecret, err := RandomHexStr(20)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		newInitData.Applications = []Application{
 			{
@@ -160,11 +159,11 @@ func MergeInitData(newInitData CasdoorInitData) (string, error) {
 		for i := 0; i < len(newInitData.Applications); i++ {
 			clientID, err := RandomHexStr(10)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			clientSecret, err := RandomHexStr(20)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			defaultApp := Application{
 				Owner:          "admin",
@@ -179,7 +178,7 @@ func MergeInitData(newInitData CasdoorInitData) (string, error) {
 				Providers:      providerItems,
 			}
 			if err := mergo.Merge(&newInitData.Applications[i], defaultApp); err != nil {
-				return "", err
+				return nil, err
 			}
 		}
 	}
@@ -194,12 +193,11 @@ func MergeInitData(newInitData CasdoorInitData) (string, error) {
 				SignupApplication: newInitData.Applications[0].Name,
 			}
 			if err := mergo.Merge(&newInitData.Users[i], defaultUser); err != nil {
-				return "", err
+				return nil, err
 			}
 		}
 	}
-	s, err := json.Marshal(newInitData)
-	return string(s), err
+	return newInitData, nil
 }
 
 func RandomHexStr(n int) (string, error) {
