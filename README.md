@@ -17,9 +17,6 @@
 
 
 <p align="center">
-  <a href="https://goreportcard.com/report/github.com/casdoor/casdoor-operator">
-    <img alt="Go Report Card" src="https://goreportcard.com/badge/github.com/casdoor/casdoor?style=flat-square">
-  </a>
   <a href="https://github.com/casdoor/casdoor-operator/blob/master/LICENSE">
     <img src="https://img.shields.io/github/license/casdoor/casdoor-operator?style=flat-square" alt="license">
   </a>
