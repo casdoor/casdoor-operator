@@ -2,9 +2,36 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  creationTimestamp: null
   name: manager-role
 rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - apps
   resources:
@@ -18,11 +45,29 @@ rules:
   - update
   - watch
 - apiGroups:
-  - apps
+  - coordination.k8s.io
   resources:
-  - deployments/status
+  - leases
   verbs:
+  - create
+  - delete
   - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - operator.casdoor.org
   resources:
@@ -38,14 +83,20 @@ rules:
 - apiGroups:
   - operator.casdoor.org
   resources:
-  - casdoors/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - operator.casdoor.org
-  resources:
   - casdoors/status
   verbs:
   - get
   - patch
   - update
+- apiGroups:
+  - policy
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch

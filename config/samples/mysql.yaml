@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: casdoor-db
+stringData:
+  password: change-me
+---
+apiVersion: operator.casdoor.org/v1alpha1
+kind: Casdoor
+metadata:
+  name: casdoor
+spec:
+  origin: https://door.example.com
+  database:
+    driver: mysql
+    host: mysql.default.svc
+    user: root
+    passwordSecretRef:
+      name: casdoor-db
+      key: password
+  config:
+    defaultLanguage: zh

@@ -1,0 +1,10 @@
+# A single-replica instance that keeps its data in a sqlite file on a volume.
+apiVersion: operator.casdoor.org/v1alpha1
+kind: Casdoor
+metadata:
+  name: casdoor
+spec:
+  database:
+    driver: sqlite
+    storage:
+      size: 1Gi

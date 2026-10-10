@@ -1,0 +1,36 @@
+# Three replicas behind an ingress, with PostgreSQL for data and Redis for sessions.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: casdoor-credentials
+stringData:
+  db-password: change-me
+  admin-password: change-me-too
+---
+apiVersion: operator.casdoor.org/v1alpha1
+kind: Casdoor
+metadata:
+  name: casdoor
+spec:
+  replicas: 3
+  database:
+    driver: postgres
+    host: postgres.default.svc
+    user: casdoor
+    name: casdoor
+    passwordSecretRef:
+      name: casdoor-credentials
+      key: db-password
+  redis:
+    endpoint: redis.default.svc:6379
+  initAdminPasswordSecretRef:
+    name: casdoor-credentials
+    key: admin-password
+  ingress:
+    className: nginx
+    host: door.example.com
+    tlsSecretName: door-example-com-tls
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi

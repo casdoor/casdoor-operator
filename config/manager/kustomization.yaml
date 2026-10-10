@@ -1,10 +1,6 @@
 resources:
 - manager.yaml
-
-generatorOptions:
-  disableNameSuffixHash: true
-
-configMapGenerator:
-- name: manager-config
-  files:
-  - controller_manager_config.yaml
+images:
+- name: controller
+  newName: casbin/casdoor-operator
+  newTag: latest
