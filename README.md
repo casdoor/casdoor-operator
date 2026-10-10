@@ -106,6 +106,7 @@ Run `kubectl explain casdoor.spec` for the full schema.
 
 ```bash
 make generate   # DeepCopy methods, CRD and ClusterRole
+make test       # unit tests and controller tests against a local kube-apiserver (envtest, Linux or macOS)
 make build
 make run        # run against the cluster in ~/.kube/config
 ```

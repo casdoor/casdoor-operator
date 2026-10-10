@@ -17,6 +17,13 @@ fmt:
 vet:
 	go vet ./...
 
+ENVTEST_K8S_VERSION ?= 1.37.0
+SETUP_ENVTEST ?= go run sigs.k8s.io/controller-runtime/tools/setup-envtest@release-0.25
+
+.PHONY: test
+test: generate fmt vet ## Run the tests against a local kube-apiserver and etcd.
+	KUBEBUILDER_ASSETS="$$($(SETUP_ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
+
 .PHONY: build
 build: generate fmt vet ## Build the manager binary.
 	go build -o bin/manager ./cmd

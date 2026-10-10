@@ -19,8 +19,8 @@ jobs:
         run: |
           make generate
           git diff --exit-code
-      - run: go vet ./...
       - run: go build ./...
+      - run: make test
 
   release-and-push:
     name: Release And Push
