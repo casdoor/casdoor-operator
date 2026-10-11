@@ -64,6 +64,13 @@ type CasdoorSpec struct {
 	// +optional
 	InitAdminPasswordSecretRef *corev1.SecretKeySelector `json:"initAdminPasswordSecretRef,omitempty"`
 
+	// APICredentialsSecretRef points to a Secret with the clientId and clientSecret keys of an
+	// application in the built-in organization. CasdoorOrganization and CasdoorApplication objects
+	// use it to call the Casdoor API. Without it the operator signs in once with the initial admin
+	// password and stores the credentials of app-built-in in the Secret <name>-api-credentials.
+	// +optional
+	APICredentialsSecretRef *corev1.LocalObjectReference `json:"apiCredentialsSecretRef,omitempty"`
+
 	// InitData loads organizations, applications, users and so on from an init_data.json.
 	// +optional
 	InitData *InitDataSpec `json:"initData,omitempty"`
@@ -243,6 +250,10 @@ type CasdoorStatus struct {
 	// URL is where the instance is reachable: the origin, or the in-cluster service address.
 	// +optional
 	URL string `json:"url,omitempty"`
+
+	// APICredentialsSecretName is the Secret holding the API credentials once they are known.
+	// +optional
+	APICredentialsSecretName string `json:"apiCredentialsSecretName,omitempty"`
 
 	// +listType=map
 	// +listMapKey=type

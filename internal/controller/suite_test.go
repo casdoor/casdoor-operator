@@ -39,6 +39,7 @@ var (
 	testEnv   *envtest.Environment
 	k8sClient client.Client
 	cancel    context.CancelFunc
+	fake      *fakeCasdoor
 )
 
 func TestController(t *testing.T) {
@@ -69,11 +70,31 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).NotTo(HaveOccurred())
 
+	fake = newFakeCasdoor()
+	fakeEndpoint := func(*operatorv1alpha1.Casdoor) string { return fake.server.URL }
+	recorder := mgr.GetEventRecorderFor("casdoor-operator")
+
 	err = (&CasdoorReconciler{
 		Client:       mgr.GetClient(),
 		Scheme:       mgr.GetScheme(),
-		Recorder:     mgr.GetEventRecorderFor("casdoor-operator"),
+		Recorder:     recorder,
 		DefaultImage: testImage,
+		APIEndpoint:  fakeEndpoint,
+	}).SetupWithManager(mgr)
+	Expect(err).NotTo(HaveOccurred())
+
+	err = (&CasdoorOrganizationReconciler{
+		Client:      mgr.GetClient(),
+		Recorder:    recorder,
+		APIEndpoint: fakeEndpoint,
+	}).SetupWithManager(mgr)
+	Expect(err).NotTo(HaveOccurred())
+
+	err = (&CasdoorApplicationReconciler{
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
+		Recorder:    recorder,
+		APIEndpoint: fakeEndpoint,
 	}).SetupWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
@@ -87,5 +108,6 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	cancel()
+	fake.server.Close()
 	Expect(testEnv.Stop()).To(Succeed())
 })

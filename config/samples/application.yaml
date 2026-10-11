@@ -1,0 +1,17 @@
+# The operator writes endpoint, clientId, clientSecret, organizationName, applicationName and
+# certificate to the Secret acme-portal-casdoor, ready to be mounted by the application.
+apiVersion: operator.casdoor.org/v1alpha1
+kind: CasdoorApplication
+metadata:
+  name: acme-portal
+spec:
+  casdoorRef:
+    name: casdoor
+  organization: acme
+  displayName: ACME Portal
+  redirectUris:
+  - https://portal.acme.example.com/callback
+  grantTypes: [authorization_code, refresh_token]
+  tokenFormat: JWT-Standard
+  expireInHours: 24
+  cert: cert-built-in

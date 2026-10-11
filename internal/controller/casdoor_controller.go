@@ -42,16 +42,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	operatorv1alpha1 "github.com/casdoor/casdoor-operator/api/v1alpha1"
+	"github.com/casdoor/casdoor-operator/internal/casdoor"
 )
 
 const (
-	fieldOwner         = "casdoor-operator"
-	secretRetryPeriod  = 30 * time.Second
-	reasonSecretError  = "SecretNotReady"
-	reasonApplyError   = "ApplyFailed"
-	reasonRollingOut   = "RollingOut"
-	reasonScaledToZero = "ScaledToZero"
-	reasonAvailable    = "Available"
+	fieldOwner        = "casdoor-operator"
+	secretRetryPeriod = 30 * time.Second
+	// Casdoor locks an account after 5 wrong passwords, so a wrong initial password must not be
+	// retried often enough to lock the administrator out.
+	bootstrapRetryPeriod = 5 * time.Minute
+	reasonSecretError    = "SecretNotReady"
+	reasonApplyError     = "ApplyFailed"
+	reasonRollingOut     = "RollingOut"
+	reasonScaledToZero   = "ScaledToZero"
+	reasonAvailable      = "Available"
 )
 
 var errSecretNotReady = errors.New("secret not ready")
@@ -62,13 +66,14 @@ type CasdoorReconciler struct {
 	Scheme       *runtime.Scheme
 	Recorder     record.EventRecorder
 	DefaultImage string
+	APIEndpoint  APIEndpointFunc
 }
 
 // +kubebuilder:rbac:groups=operator.casdoor.org,resources=casdoors,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=operator.casdoor.org,resources=casdoors/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=services;persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=get;list;watch;create;update;patch;delete
@@ -99,7 +104,12 @@ func (r *CasdoorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{}, r.updateStatus(ctx, cr, deployment)
+	status := buildStatus(cr, deployment)
+	retryAfter := r.reconcileAPICredentials(ctx, cr, status)
+	if err := r.writeStatus(ctx, cr, status); err != nil {
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{RequeueAfter: retryAfter}, nil
 }
 
 func (r *CasdoorReconciler) applyAll(ctx context.Context, cr *operatorv1alpha1.Casdoor, deployment *appsv1.Deployment) error {
@@ -242,7 +252,7 @@ func (r *CasdoorReconciler) setNotReady(ctx context.Context, cr *operatorv1alpha
 }
 
 // The deployment holds the server response of the apply, so its status is current.
-func (r *CasdoorReconciler) updateStatus(ctx context.Context, cr *operatorv1alpha1.Casdoor, deployment *appsv1.Deployment) error {
+func buildStatus(cr *operatorv1alpha1.Casdoor, deployment *appsv1.Deployment) *operatorv1alpha1.CasdoorStatus {
 	replicas := int32(1)
 	if cr.Spec.Replicas != nil {
 		replicas = *cr.Spec.Replicas
@@ -280,8 +290,97 @@ func (r *CasdoorReconciler) updateStatus(ctx context.Context, cr *operatorv1alph
 			deployment.Status.AvailableReplicas, replicas, deployment.Status.UpdatedReplicas)
 	}
 	meta.SetStatusCondition(&status.Conditions, condition)
+	return status
+}
 
-	return r.writeStatus(ctx, cr, status)
+func apiCredentialsSecretName(cr *operatorv1alpha1.Casdoor) string {
+	if cr.Spec.APICredentialsSecretRef != nil {
+		return cr.Spec.APICredentialsSecretRef.Name
+	}
+	return cr.Name + "-api-credentials"
+}
+
+// reconcileAPICredentials makes the API credentials available, signing in with the initial
+// admin password when the user did not provide them. It returns when to try again, 0 for never.
+func (r *CasdoorReconciler) reconcileAPICredentials(ctx context.Context, cr *operatorv1alpha1.Casdoor, status *operatorv1alpha1.CasdoorStatus) time.Duration {
+	name := apiCredentialsSecretName(cr)
+	setCondition := func(conditionStatus metav1.ConditionStatus, reason string, message string) {
+		meta.SetStatusCondition(&status.Conditions, metav1.Condition{
+			Type:               operatorv1alpha1.ConditionAPIReady,
+			Status:             conditionStatus,
+			Reason:             reason,
+			Message:            message,
+			ObservedGeneration: cr.Generation,
+		})
+		status.APICredentialsSecretName = ""
+		if conditionStatus == metav1.ConditionTrue {
+			status.APICredentialsSecretName = name
+		}
+	}
+
+	_, _, err := readCredentials(ctx, r.Client, cr.Namespace, name)
+	if err == nil {
+		setCondition(metav1.ConditionTrue, reasonAvailable, "API credentials are in secret "+name)
+		return 0
+	}
+	if !errors.Is(err, errCasdoorNotReady) {
+		setCondition(metav1.ConditionFalse, reasonSecretError, err.Error())
+		return secretRetryPeriod
+	}
+	if cr.Spec.APICredentialsSecretRef != nil {
+		setCondition(metav1.ConditionFalse, reasonSecretError, err.Error())
+		return 0
+	}
+	if cr.Spec.InitAdminPasswordSecretRef == nil {
+		setCondition(metav1.ConditionFalse, "NoCredentials", "set apiCredentialsSecretRef or initAdminPasswordSecretRef to manage organizations and applications")
+		return 0
+	}
+	if !meta.IsStatusConditionTrue(status.Conditions, operatorv1alpha1.ConditionReady) {
+		setCondition(metav1.ConditionFalse, reasonWaiting, "waiting for Casdoor to become ready")
+		return 0
+	}
+
+	clientId, clientSecret, err := r.fetchBuiltInCredentials(ctx, cr)
+	if err == nil {
+		err = r.createAPICredentialsSecret(ctx, cr, name, clientId, clientSecret)
+	}
+	if err != nil {
+		r.Recorder.Event(cr, corev1.EventTypeWarning, "BootstrapFailed", err.Error())
+		setCondition(metav1.ConditionFalse, "BootstrapFailed", err.Error())
+		return bootstrapRetryPeriod
+	}
+	setCondition(metav1.ConditionTrue, reasonAvailable, "API credentials are in secret "+name)
+	return 0
+}
+
+func (r *CasdoorReconciler) fetchBuiltInCredentials(ctx context.Context, cr *operatorv1alpha1.Casdoor) (string, string, error) {
+	ref := cr.Spec.InitAdminPasswordSecretRef
+	secret := &corev1.Secret{}
+	if err := r.Get(ctx, types.NamespacedName{Namespace: cr.Namespace, Name: ref.Name}, secret); err != nil {
+		return "", "", err
+	}
+	return casdoor.FetchBuiltInCredentials(ctx, apiEndpoint(r.APIEndpoint, cr), string(secret.Data[ref.Key]))
+}
+
+func (r *CasdoorReconciler) createAPICredentialsSecret(ctx context.Context, cr *operatorv1alpha1.Casdoor, name string, clientId string, clientSecret string) error {
+	secret := &corev1.Secret{
+		ObjectMeta: objectMeta(cr, name),
+		Type:       corev1.SecretTypeOpaque,
+		StringData: map[string]string{clientIdKey: clientId, clientSecretKey: clientSecret},
+	}
+	if err := controllerutil.SetControllerReference(cr, secret, r.Scheme); err != nil {
+		return err
+	}
+	err := r.Create(ctx, secret)
+	if apierrors.IsAlreadyExists(err) {
+		existing := &corev1.Secret{}
+		if err = r.Get(ctx, client.ObjectKeyFromObject(secret), existing); err != nil {
+			return err
+		}
+		existing.StringData = secret.StringData
+		return r.Update(ctx, existing)
+	}
+	return err
 }
 
 func (r *CasdoorReconciler) writeStatus(ctx context.Context, cr *operatorv1alpha1.Casdoor, status *operatorv1alpha1.CasdoorStatus) error {
@@ -300,14 +399,23 @@ func (r *CasdoorReconciler) casdoorsForSecret(ctx context.Context, obj client.Ob
 	}
 	var requests []reconcile.Request
 	for i := range list.Items {
-		for _, ref := range secretRefs(&list.Items[i]) {
-			if ref.Name == obj.GetName() {
-				requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&list.Items[i])})
-				break
-			}
+		if referencesSecret(&list.Items[i], obj.GetName()) {
+			requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&list.Items[i])})
 		}
 	}
 	return requests
+}
+
+func referencesSecret(cr *operatorv1alpha1.Casdoor, name string) bool {
+	if apiCredentialsSecretName(cr) == name {
+		return true
+	}
+	for _, ref := range secretRefs(cr) {
+		if ref.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *CasdoorReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -317,6 +425,7 @@ func (r *CasdoorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Service{}).
 		Owns(&networkingv1.Ingress{}).
 		Owns(&policyv1.PodDisruptionBudget{}).
+		Owns(&corev1.Secret{}).
 		Watches(&corev1.Secret{}, handler.EnqueueRequestsFromMapFunc(r.casdoorsForSecret)).
 		Complete(r)
 }

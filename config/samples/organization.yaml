@@ -1,0 +1,14 @@
+apiVersion: operator.casdoor.org/v1alpha1
+kind: CasdoorOrganization
+metadata:
+  name: acme
+spec:
+  casdoorRef:
+    name: casdoor
+  displayName: ACME Corp
+  websiteUrl: https://acme.example.com
+  passwordType: bcrypt
+  languages: [en, zh]
+  # Any other field of the Casdoor organization.
+  extraFields:
+    initScore: 100

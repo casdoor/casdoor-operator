@@ -15,6 +15,7 @@ rules:
   - ""
   resources:
   - persistentvolumeclaims
+  - secrets
   - services
   verbs:
   - create
@@ -23,14 +24,6 @@ rules:
   - list
   - patch
   - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - get
-  - list
   - watch
 - apiGroups:
   - apps
@@ -71,6 +64,34 @@ rules:
 - apiGroups:
   - operator.casdoor.org
   resources:
+  - casdoorapplications
+  - casdoororganizations
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - operator.casdoor.org
+  resources:
+  - casdoorapplications/finalizers
+  - casdoororganizations/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - operator.casdoor.org
+  resources:
+  - casdoorapplications/status
+  - casdoororganizations/status
+  - casdoors/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - operator.casdoor.org
+  resources:
   - casdoors
   verbs:
   - create
@@ -80,14 +101,6 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - operator.casdoor.org
-  resources:
-  - casdoors/status
-  verbs:
-  - get
-  - patch
-  - update
 - apiGroups:
   - policy
   resources:

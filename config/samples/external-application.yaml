@@ -1,0 +1,23 @@
+# An application in a Casdoor server this operator does not run. The Secret holds the
+# clientId and clientSecret of an application in its built-in organization.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: door-api
+stringData:
+  clientId: change-me
+  clientSecret: change-me
+---
+apiVersion: operator.casdoor.org/v1alpha1
+kind: CasdoorApplication
+metadata:
+  name: grafana
+spec:
+  casdoorRef:
+    external:
+      endpoint: https://door.example.com
+      credentialsSecretRef:
+        name: door-api
+  organization: acme
+  redirectUris:
+  - https://grafana.example.com/login/generic_oauth

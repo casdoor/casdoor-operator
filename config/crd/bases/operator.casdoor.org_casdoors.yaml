@@ -967,6 +967,24 @@ spec:
                         x-kubernetes-list-type: atomic
                     type: object
                 type: object
+              apiCredentialsSecretRef:
+                description: |-
+                  APICredentialsSecretRef points to a Secret with the clientId and clientSecret keys of an
+                  application in the built-in organization. CasdoorOrganization and CasdoorApplication objects
+                  use it to call the Casdoor API. Without it the operator signs in once with the initial admin
+                  password and stores the credentials of app-built-in in the Secret <name>-api-credentials.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
               config:
                 additionalProperties:
                   type: string
@@ -1716,6 +1734,10 @@ spec:
           status:
             description: CasdoorStatus defines the observed state of a Casdoor instance.
             properties:
+              apiCredentialsSecretName:
+                description: APICredentialsSecretName is the Secret holding the API
+                  credentials once they are known.
+                type: string
               conditions:
                 items:
                   description: Condition contains details for one aspect of the current

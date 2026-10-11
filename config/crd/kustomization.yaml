@@ -1,2 +1,4 @@
 resources:
 - bases/operator.casdoor.org_casdoors.yaml
+- bases/operator.casdoor.org_casdoororganizations.yaml
+- bases/operator.casdoor.org_casdoorapplications.yaml

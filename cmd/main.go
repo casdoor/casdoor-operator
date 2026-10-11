@@ -31,7 +31,7 @@ import (
 	"github.com/casdoor/casdoor-operator/internal/controller"
 )
 
-const defaultCasdoorImage = "casbin/casdoor:4.18.0"
+const defaultCasdoorImage = "casbin/casdoor:4.19.0"
 
 var (
 	scheme   = runtime.NewScheme()
@@ -85,6 +85,21 @@ func main() {
 	}
 	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Casdoor")
+		os.Exit(1)
+	}
+	if err = (&controller.CasdoorOrganizationReconciler{
+		Client:   mgr.GetClient(),
+		Recorder: mgr.GetEventRecorderFor("casdoor-operator"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "CasdoorOrganization")
+		os.Exit(1)
+	}
+	if err = (&controller.CasdoorApplicationReconciler{
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor("casdoor-operator"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "CasdoorApplication")
 		os.Exit(1)
 	}
 

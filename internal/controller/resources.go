@@ -34,6 +34,11 @@ const (
 	containerName = "casdoor"
 	httpPortName  = "http"
 	httpPort      = 8000
+	ldapPortName  = "ldap"
+	// An unprivileged port, because pods run as user 1000 and some runtimes do not allow it
+	// to bind ports below 1024. The service still exposes the standard 389.
+	defaultLdapPort = 10389
+	ldapServicePort = 389
 
 	dataVolumeName     = "data"
 	dataMountPath      = "/data"
@@ -107,11 +112,15 @@ func origin(cr *operatorv1alpha1.Casdoor) string {
 	return ""
 }
 
+func serviceURL(cr *operatorv1alpha1.Casdoor) string {
+	return fmt.Sprintf("http://%s.%s.svc:%d", cr.Name, cr.Namespace, servicePort(cr))
+}
+
 func instanceURL(cr *operatorv1alpha1.Casdoor) string {
 	if url := origin(cr); url != "" {
 		return url
 	}
-	return fmt.Sprintf("http://%s.%s.svc:%d", cr.Name, cr.Namespace, servicePort(cr))
+	return serviceURL(cr)
 }
 
 func dataSourceName(db *operatorv1alpha1.DatabaseSpec) string {
@@ -166,16 +175,30 @@ func secretEnv(name string, ref *corev1.SecretKeySelector) corev1.EnvVar {
 	}
 }
 
-func buildEnv(cr *operatorv1alpha1.Casdoor) []corev1.EnvVar {
+func buildConfig(cr *operatorv1alpha1.Casdoor) map[string]string {
 	config := map[string]string{
-		"runmode":   "prod",
-		"logConfig": `{"adapter":"console"}`,
+		"runmode":        "prod",
+		"logConfig":      `{"adapter":"console"}`,
+		"ldapServerPort": strconv.Itoa(defaultLdapPort),
 	}
 	for key, value := range cr.Spec.Config {
 		if !managedConfigKeys[key] {
 			config[key] = value
 		}
 	}
+	return config
+}
+
+func ldapPort(cr *operatorv1alpha1.Casdoor) int32 {
+	port, err := strconv.Atoi(buildConfig(cr)["ldapServerPort"])
+	if err != nil || port <= 0 || port > 65535 {
+		return defaultLdapPort
+	}
+	return int32(port)
+}
+
+func buildEnv(cr *operatorv1alpha1.Casdoor) []corev1.EnvVar {
+	config := buildConfig(cr)
 
 	env := []corev1.EnvVar{
 		{Name: "BEEGO_RUNMODE", Value: config["runmode"]},
@@ -353,6 +376,7 @@ func buildDeployment(cr *operatorv1alpha1.Casdoor, defaultImage string, secretHa
 							Env:             buildEnv(cr),
 							Ports: []corev1.ContainerPort{
 								{Name: httpPortName, ContainerPort: httpPort, Protocol: corev1.ProtocolTCP},
+								{Name: ldapPortName, ContainerPort: ldapPort(cr), Protocol: corev1.ProtocolTCP},
 							},
 							Resources:    cr.Spec.Resources,
 							VolumeMounts: mounts,
@@ -398,6 +422,12 @@ func buildService(cr *operatorv1alpha1.Casdoor) *corev1.Service {
 					Name:       httpPortName,
 					Port:       servicePort(cr),
 					TargetPort: intstr.FromString(httpPortName),
+					Protocol:   corev1.ProtocolTCP,
+				},
+				{
+					Name:       ldapPortName,
+					Port:       ldapServicePort,
+					TargetPort: intstr.FromString(ldapPortName),
 					Protocol:   corev1.ProtocolTCP,
 				},
 			},
