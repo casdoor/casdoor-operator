@@ -9,6 +9,8 @@ A Kubernetes operator that runs [Casdoor](https://github.com/casdoor/casdoor) in
 - `Casdoor` becomes a Deployment, a Service and, when asked for, an Ingress, a PodDisruptionBudget and a data volume.
 - `CasdoorOrganization` and `CasdoorApplication` declare organizations and applications, in an instance run by the operator or in any other Casdoor server. Each application gets a Secret with its client credentials, ready to mount.
 
+Documentation: https://casdoor.ai/docs/deployment/kubernetes-operator
+
 What it takes care of:
 
 - Database settings for MySQL, PostgreSQL or SQLite, with passwords read from Secrets. A complete `dataSourceName` can also come from a Secret.
